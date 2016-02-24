@@ -12,7 +12,7 @@ var types = {
   clone: 'fa-copy',
   deprovision: 'fa-remove',
   reprovision: 'fa-refresh',
-  replicate: 'fa-clone'
+  'initialize-from': 'fa-clone'
 };
 
 var statuses = {

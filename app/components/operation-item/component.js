@@ -7,6 +7,9 @@ export default Ember.Component.extend({
     if(type === 'execute') {
       return 'SSHed';
     }
+    if (type === 'initialize-from') {
+      return 'Initialized from another database';
+    }
     if (type.slice(-1) === 'e') {
       return `${type}d`;
     }
