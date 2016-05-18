@@ -5,6 +5,7 @@ sudo: false
 cache:
   directories:
   - node_modules
+  - testem
 before_install:
 - mkdir phantomjs-2.0.0
 - wget https://s3.amazonaws.com/travis-phantomjs/phantomjs-2.0.0-ubuntu-12.04.tar.bz2 -O phantomjs-2.0.0/phantomjs-2.0.0-ubuntu-12.04.tar.bz2
@@ -12,6 +13,9 @@ before_install:
 - export PATH=$PWD/phantomjs-2.0.0:$PATH
 - npm config set spin false
 - npm install -g npm@^2
+- git clone https://github.com/testem/testem.git
+- pushd testem && git checkout v1.7.1 && npm i && npm link && popd
+- npm link testem
 install:
 - npm install -g bower
 - npm install
