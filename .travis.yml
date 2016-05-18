@@ -13,8 +13,8 @@ before_install:
 - export PATH=$PWD/phantomjs-2.0.0:$PATH
 - npm config set spin false
 - npm install -g npm@^2
-- git clone https://github.com/testem/testem.git
-- pushd testem && git checkout v1.7.1 && npm i && npm link && popd
+- git clone https://github.com/testem/testem.git || true
+- pushd testem && git fetch && git checkout v1.7.1 && npm i && npm link && popd
 - npm link testem
 install:
 - npm install -g bower
