@@ -6,9 +6,5 @@ export default DS.Model.extend({
   invitationId: DS.attr('string'),
   type: DS.attr('string'),
   userId: DS.attr('string'),
-  password: DS.attr('string'),
-
-
-  // TODO(PasswordResetChallenge): Remove
-  resetCode: DS.attr('string')
+  password: DS.attr('string')
 });

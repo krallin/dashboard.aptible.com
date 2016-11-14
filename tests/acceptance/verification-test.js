@@ -1,4 +1,3 @@
-// TODO(EmailVerificationChallenge): remove
 import Ember from 'ember';
 import {module, test} from 'qunit';
 import startApp from '../helpers/start-app';
@@ -6,7 +5,11 @@ import { stubRequest } from '../helpers/fake-server';
 
 var App;
 
-module('Acceptance: Verification (Legacy workflow)', {
+const challengeId = 'some-challenge-id';
+const verificationCode = 'some-verification-code';
+const verifyUrl = `/verify/${challengeId}/${verificationCode}`;
+
+module('Acceptance: Verification (EmailVerificationChallenge workflow)', {
   beforeEach: function() {
     App = startApp();
   },
@@ -15,53 +18,51 @@ module('Acceptance: Verification (Legacy workflow)', {
   }
 });
 
-test('visiting /verify/some-code requires authentication', function() {
-  expectRequiresAuthentication('/verify/some-code');
+test('visiting /verify/:challenge_id/:verification_code requires authentication', function() {
+  expectRequiresAuthentication(verifyUrl);
 });
 
-test('visiting /verify/some-code creates verification', function(assert) {
+test('visiting /verify/:challenge_id/:verification_code creates verification', function(assert) {
+  assert.expect(4);
   stubStacks(); // For loading index
   stubOrganization();
   stubUser();
-  var verificationCode = 'some-code';
 
   stubRequest('post', '/verifications', function(request){
-    var params = this.json(request);
-    assert.equal(params.verification_code, verificationCode, 'correct code is passed');
-    return this.success({
-      id: 'this-id',
-      verification_code: verificationCode
-    });
+    const json = this.json(request);
+    assert.equal(json.type, 'email_verification_challenge', 'type is sent');
+    assert.equal(json.challenge_id, challengeId, 'challenge id is sent');
+    assert.equal(json.verification_code, verificationCode, 'verification code is sent');
+    return this.success({});
   });
 
-  let userData = {verified: false};
-  signInAndVisit(`/verify/${verificationCode}`, userData);
+  let userData = { verified: false };
+  signInAndVisit(verifyUrl, userData);
   andThen(function(){
     assert.equal(currentPath(), 'requires-authorization.enclave.stack.apps.index');
   });
 });
 
 test('after verification, pending databases are provisioned', function(assert) {
-  assert.expect(5);
+  // TODO: Update as per https://github.com/aptible/dashboard.aptible.com/pull/774
+  assert.expect(7);
   stubStacks(); // For loading index
   stubOrganization();
-  var verificationCode = 'some-code';
   let dbId = 'db-id';
   let diskSize = '10';
 
   let dbData = [{id: dbId, initialDiskSize: diskSize}];
   stubDatabases(dbData);
 
-  stubRequest('post', '/verifications', function(request){
-    var params = this.json(request);
-    assert.equal(params.verification_code, verificationCode, 'correct code is passed');
-    return this.success({
-      id: 'this-id',
-      verification_code: verificationCode
-    });
+  stubRequest('post', '/verifications', function(request) {
+    const json = this.json(request);
+    assert.equal(json.type, 'email_verification_challenge', 'type is sent');
+    assert.equal(json.challenge_id, challengeId, 'challenge id is sent');
+    assert.equal(json.verification_code, verificationCode, 'verification code is sent');
+    return this.success({});
   });
 
-  stubUser({id:'user-id', verified:true});
+  stubUser({ id:'user-id', verified: true});
 
   stubRequest('post', `/databases/${dbId}/operations`, function(request){
     assert.ok(true, 'posts to create db provision op');
@@ -79,23 +80,58 @@ test('after verification, pending databases are provisioned', function(assert) {
     return this.success(201, {id: 'op-id', status: 'succeeded'});
   });
 
-  signInAndVisit('/verify/'+verificationCode);
+  signInAndVisit(verifyUrl);
   andThen(function(){
     assert.equal(currentPath(), 'requires-authorization.enclave.stack.apps.index');
   });
 });
 
 test('failed verification directs to error page', function(assert) {
-  var verificationCode = 'some-code';
+  assert.expect(4);
 
   stubRequest('post', '/verifications', function(request){
-    let json = this.json(request);
-    assert.equal(json.verification_code, verificationCode, 'correct code is passed');
+    const json = this.json(request);
+    assert.equal(json.type, 'email_verification_challenge', 'type is sent');
+    assert.equal(json.challenge_id, challengeId, 'challenge id is sent');
+    assert.equal(json.verification_code, verificationCode, 'verification code is sent');
     return this.error(401, {});
   });
 
-  signInAndVisit('/verify/'+verificationCode);
+  signInAndVisit(verifyUrl);
+
   andThen(function(){
     assert.equal(currentPath(), 'error');
+  });
+});
+
+test('visiting / when not verified shows verification message with resend button', function(assert) {
+  assert.expect(4);
+
+  stubStacks();
+  stubOrganization();
+  const userId = '123';
+  const userEmail = 'foo@bar.com';
+  const userData = {
+    id: userId,
+    email: userEmail,
+    verified: false
+  };
+
+  stubRequest('post', `/users/${userId}/email_verification_challenges`, function(request) {
+    const json = this.json(request);
+    assert.ok(json.user_id, userId);
+    assert.ok(json.email, userEmail);
+    return this.success(201, {});
+  });
+
+  signInAndVisit('/', userData);
+
+  andThen(function(){
+    let banner = find(':contains(please verify your email address.)');
+    assert.ok(banner.length, 'shows not-activated message');
+
+    let resendMessage = 'Resend verification email';
+    expectButton(resendMessage);
+    click(findButton(resendMessage));
   });
 });
